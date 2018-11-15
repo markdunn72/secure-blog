@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+    <ul class="content">
+        {% for post in context['posts'] %}
+        <li>
+            <h2>{{post['TITLE']|safe}}</h2>
+            <p class="subtext">{{post['DATE']}}</p>
+            <p>{{post['CONTENT']|safe}}</p>
+        </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

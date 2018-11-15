@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Search results</h1>
+    <p>Results for: {{context['query']|safe}}</p>
+
+    <ul>
+        {% for post in context['posts'] %}
+        <li>
+            <h2>{{post['TITLE']|safe}}</h2>
+            <p>By {{post['USERNAME']|safe}}</p>
+            <p>
+            {{post['CONTENT']|safe}}
+            </p>
+        </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

@@ -1,17 +1,18 @@
 from flask import (
     Flask, request, render_template,
-    redirect, url_for, flash, session, g)
-from wtforms import Form, BooleanField, StringField, PasswordField, validators
+    redirect, url_for, session, g)
+from wtforms import Form, TextAreaField, StringField, PasswordField, validators
 import hashlib
 import sqlite3
 import os
 from functools import wraps
 import datetime
+import re
 
 app = Flask(__name__)
 
 
-#html character escaping dictionary
+# html character escaping dictionary
 html_dict = {"!": "&#33;",
              "\"": "&#34;",
              "#": "&#35;",
@@ -167,22 +168,23 @@ html_dict = {"!": "&#33;",
              "þ": "&#254;",
              "ÿ": "&#255;"}
 
-#sets up the mapping for the html escaping
+
+# sets up the mapping for the html escaping
 html_sorted = sorted(html_dict, key=lambda s: len(s[0]), reverse=True)
 html_escaped = [re.escape(replacement) for replacement in html_sorted]
 html_pattern = re.compile("|".join(html_escaped))
+
 
 # User input is escaped and returned
 def escape(user_input):
     return html_pattern.sub(lambda match: html_dict[match.group(0)], user_input)
 
 
-
 # decorators
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if g.user is None:
+        if 'username' not in session:
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
 
@@ -233,9 +235,10 @@ def search_page():
     search_query = request.args.get('s', '')
     posts = search_posts(search_query)
 
-    for post in posts:
-        post['content'] = '%s...'%(post['content'][:50])
-    context['posts'] = posts
+    if posts:
+        for post in posts:
+            post['CONTENT'] = '%s...' % (post['CONTENT'][:50])
+        context['posts'] = posts
     context['query'] = search_query
     return render_template('search_results.html', context=context)
 
@@ -312,6 +315,15 @@ def enumeration_delay():
     sleep(random.uniform(0.2, 0.6))
 
 
+class PostForm(Form):
+    title = StringField('Title', validators=[
+        validators.DataRequired()
+    ])
+    content = TextAreaField('Content', validators=[
+        validators.DataRequired()
+    ])
+
+
 @app.route('/register', methods=['GET', 'POST'])
 @std_context
 def register():
@@ -373,6 +385,25 @@ def users_posts(uname=None):
         context['posts'] = posts
 
     return render_template('user_posts.html', context=context)
+
+
+
+@app.route('/post/', methods=['GET', 'POST'])
+@std_context
+@login_required
+def new_post():
+    context = request.context
+    userid = get_userid(session['username'])
+    form = PostForm(request.form)
+
+    if request.method == 'POST' and form.validate():
+        date = datetime.datetime.now().timestamp()
+        title = form.title.data
+        content = form.content.data
+        add_post_to_database(userid, date, title, content)
+        return redirect('/' + session['username'])
+
+    return render_template('new_post.html', form=form, context=context)
 
 
 # # #
@@ -480,11 +511,20 @@ def search_posts(query):
     connection = get_db()
     with connection:
         cursor = connection.cursor()
-        statement = '''SELECT POSTS.CREATOR,POSTS.TITLE,POSTS.CONTENT,USERS.USERNAME FROM POSTS JOIN USERS 
-        ON POSTS.CREATOR=USERS.USERID WHERE TITLE LIKE '%%?%%' ORDER BY DATE DESC LIMIT 10;'''
-        cursor.execute(statement, (query,))
+        cursor.execute(('SELECT POSTS.CREATOR,POSTS.TITLE,POSTS.CONTENT,USERS.USERNAME FROM POSTS JOIN USERS ' +
+                        'ON POSTS.CREATOR=USERS.USERID WHERE TITLE LIKE ? ORDER BY DATE DESC LIMIT 10;'), (query,))
         rows = cursor.fetchall()
     return rows if rows else None
+
+
+def add_post_to_database(userid, date, title, content):
+    connection = get_db()
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT MAX(POSTID) FROM POSTS")
+        postid = (cursor.fetchone()['MAX(POSTID)']) + 1
+        cursor.execute("INSERT INTO POSTS (POSTID, CREATOR, DATE, TITLE, CONTENT) VALUES (?, ?, ?, ?, ?)",
+                       (postid, userid, date, title, content))
 
 
 if __name__ == '__main__':

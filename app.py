@@ -1,6 +1,6 @@
 from flask import (
     Flask, request, render_template,
-    redirect, url_for, session, g)
+    redirect, url_for, session, g, abort)
 from wtforms import Form, TextAreaField, StringField, PasswordField, validators
 import hashlib
 import sqlite3
@@ -11,7 +11,9 @@ import re
 
 app = Flask(__name__)
 
-
+# # #
+# SECURITY
+#
 # html character escaping dictionary
 html_dict = {"!": "&#33;",
              "\"": "&#34;",
@@ -191,6 +193,28 @@ def login_required(f):
     return decorated_function
 
 
+# # #
+# CSRF Protection
+#
+# new token generated per-request
+@app.before_request
+def csrf_protect():
+    if request.method == "POST":
+        token = session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(400)
+
+
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        # generate per-request CSRF token
+        session['_csrf_token'] = hashlib.sha3_512(os.urandom(128)).hexdigest()
+    return session['_csrf_token']
+
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+
 def std_context(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -330,9 +354,9 @@ def register():
     context = request.context
     if context['loggedin']:
         return redirect(url_for('index'))
-    form = RegistrationForm(request.form)
+    form = RegistrationForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
-        username = form.username.data
+        username = escape(form.username.data)
         email = form.email.data
         password = form.password.data
 
@@ -351,7 +375,7 @@ def login():
     context = request.context
     if context['loggedin']:
         return redirect(url_for('index'))
-    form = LoginForm(request.form)
+    form = LoginForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
         session['username'] = form.username.data
         return redirect(url_for('index'))
@@ -387,19 +411,17 @@ def users_posts(uname=None):
     return render_template('user_posts.html', context=context)
 
 
-
 @app.route('/post/', methods=['GET', 'POST'])
 @std_context
 @login_required
 def new_post():
     context = request.context
     userid = get_userid(session['username'])
-    form = PostForm(request.form)
-
+    form = PostForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
         date = datetime.datetime.now().timestamp()
-        title = form.title.data
-        content = form.content.data
+        title = escape(form.title.data)
+        content = escape(form.content.data)
         add_post_to_database(userid, date, title, content)
         return redirect('/' + session['username'])
 
@@ -511,9 +533,12 @@ def search_posts(query):
     connection = get_db()
     with connection:
         cursor = connection.cursor()
-        cursor.execute(('SELECT POSTS.CREATOR,POSTS.TITLE,POSTS.CONTENT,USERS.USERNAME FROM POSTS JOIN USERS ' +
-                        'ON POSTS.CREATOR=USERS.USERID WHERE TITLE LIKE ? ORDER BY DATE DESC LIMIT 10;'), (query,))
+        print(cursor)
+        print(query)
+        cursor.execute('SELECT POSTS.CREATOR,POSTS.TITLE,POSTS.CONTENT,USERS.USERNAME FROM POSTS JOIN USERS ' +
+                       'ON POSTS.CREATOR=USERS.USERID WHERE TITLE LIKE ? ORDER BY DATE DESC LIMIT 10;', (query,))
         rows = cursor.fetchall()
+        print(rows)
     return rows if rows else None
 
 

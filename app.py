@@ -1,6 +1,7 @@
 from flask import (
     Flask, request, render_template,
     redirect, url_for, session, g, abort)
+from flask_wtf import FlaskForm, RecaptchaField
 from wtforms import Form, TextAreaField, StringField, PasswordField, validators
 import hashlib
 import sqlite3
@@ -9,7 +10,11 @@ from functools import wraps
 import datetime
 import re
 
+
 app = Flask(__name__)
+app.config['RECAPTCHA_PUBLIC_KEY'] = '6LethXwUAAAAAOpsqvH8g--kWSBBRY1ia_zBlaL1'
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LethXwUAAAAAEqRb8XvXnGGA2VQsW1RPl0Fkgal'
+
 
 # # #
 # SECURITY
@@ -274,7 +279,7 @@ default_account_error = u'There was an error with the account credentials'
 
 
 # user forms
-class RegistrationForm(Form):
+class RegistrationForm(FlaskForm):
     username = StringField('Username', [
         validators.DataRequired(),
     ])
@@ -286,6 +291,7 @@ class RegistrationForm(Form):
         validators.EqualTo('confirm', message='Passwords must match')
     ])
     confirm = PasswordField('Repeat Password')
+    recaptcha = RecaptchaField()
     registration_error = 'Unable to register account using these credentials'
 
     # override validation to ensure username and email are unique
@@ -305,13 +311,14 @@ class RegistrationForm(Form):
         return True
 
 
-class LoginForm(Form):
+class LoginForm(FlaskForm):
     username = StringField('Username', [
         validators.DataRequired('Please enter your username')
     ])
     password = PasswordField('Password', [
         validators.DataRequired('Please enter your password')
     ])
+    recaptcha = RecaptchaField()
     login_error = 'Unable to login using these credentials'
 
     # override validation to include credentials check

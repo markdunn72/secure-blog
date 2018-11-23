@@ -35,11 +35,11 @@
                 {% if context['loggedin'] %}
 
                 <li class="nav-item dropdown">
-                    <a class="nav-item nav-link dropdown-toggle mr-md-2" href="#" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <a class="nav-item nav-link dropdown-toggle mr-md-2" href="/u/{{ context['username'] }}" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                       {{ context['username'] }}
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bd-versions">
-                        <a class="dropdown-item" href="/email_change">Change email</a>
+                        <a class="dropdown-item" href="/u/{{ context['username'] }}">{{ context['username'] }}'s posts</a>
                         <a class="dropdown-item" href="/password_change">Change password</a>
                          <div class="dropdown-divider"></div>
                         <a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a>

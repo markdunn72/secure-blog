@@ -339,7 +339,7 @@ class RegistrationForm(FlaskForm):
     recaptcha = RecaptchaField()
     registration_error = 'Unable to register account using these credentials'
 
-    # override validation to ensure username and email are unique
+    # override validate to ensure username and email are unique
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
 
@@ -502,7 +502,7 @@ def new_post():
         title = escape(form.title.data)
         content = escape(form.content.data)
         add_post_to_database(userid, date, title, content)
-        return redirect('/' + session['username'])
+        return redirect('/u/' + session['username'])
 
     return render_template('new_post.html', form=form, context=context)
 
@@ -654,5 +654,4 @@ def add_post_to_database(userid, date, title, content):
 
 
 if __name__ == '__main__':
-    # set debug=False for production
-    app.run(debug=True)
+    app.run()

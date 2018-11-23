@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
     <ul class="content">
+        {% if context['posts'] %}
         {% for post in context['posts'] %}
         <li>
             <h2>{{post['TITLE']|safe}}</h2>
@@ -8,5 +9,6 @@
             <p>{{post['CONTENT']|safe}}</p>
         </li>
         {% endfor %}
+        {% endif %}
     </ul>
 {% endblock %}

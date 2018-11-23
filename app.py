@@ -363,7 +363,7 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', [
         validators.DataRequired('Please enter your password')
     ])
-    #recaptcha = RecaptchaField()
+    recaptcha = RecaptchaField()
     login_error = 'Unable to login using these credentials'
 
     # override validation to include credentials check

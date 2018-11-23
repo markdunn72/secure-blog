@@ -2,12 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="dba5d77e-bae1-40b8-912d-e505bce670ea" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../secure_blog/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../secure_blog/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../secure_blog/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../secure_blog/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../secure_blog/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/../secure_blog/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../secure_blog/blogsite.sqlite" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../secure_blog/create_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/../secure_blog/create_db.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../secure_blog/templates/blank_page.html" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../secure_blog/templates/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/../secure_blog/templates/login.html" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -87,16 +83,16 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../secure_blog/app.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="103">
-              <caret line="586" column="32" selection-start-line="586" selection-start-column="32" selection-end-line="586" selection-end-column="32" />
+            <state relative-caret-position="-51">
+              <caret line="365" column="4" selection-start-line="365" selection-start-column="4" selection-end-line="365" selection-end-column="4" />
               <folding>
                 <element signature="e#0#98#0" expanded="true" />
-                <marker date="1542984707295" expanded="true" signature="17026:17198" ph="..." />
-                <marker date="1542984707295" expanded="true" signature="17705:17708" ph="..." />
-                <marker date="1542984707295" expanded="true" signature="19224:19226" ph="..." />
+                <marker date="1542986008990" expanded="true" signature="17025:17197" ph="..." />
+                <marker date="1542986008990" expanded="true" signature="17704:17707" ph="..." />
+                <marker date="1542986008990" expanded="true" signature="19223:19225" ph="..." />
               </folding>
             </state>
           </provider>
@@ -111,11 +107,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/../secure_blog/templates/login.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="120">
-              <caret line="8" column="42" selection-start-line="8" selection-start-column="42" selection-end-line="8" selection-end-column="42" />
+            <state relative-caret-position="105">
+              <caret line="7" column="37" lean-forward="true" selection-start-line="7" selection-start-column="37" selection-end-line="7" selection-end-column="37" />
             </state>
           </provider>
         </entry>
@@ -175,8 +171,8 @@
         <option value="$PROJECT_DIR$/../secure_blog/templates/registration_confirm.html" />
         <option value="$PROJECT_DIR$/../secure_blog/templates/activate.html" />
         <option value="$PROJECT_DIR$/../secure_blog/templates/basic.html" />
-        <option value="$PROJECT_DIR$/../secure_blog/templates/login.html" />
         <option value="$PROJECT_DIR$/../secure_blog/app.py" />
+        <option value="$PROJECT_DIR$/../secure_blog/templates/login.html" />
       </list>
     </option>
   </component>
@@ -498,23 +494,23 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../secure_blog/templates/login.html">
+    <entry file="file://$PROJECT_DIR$/../secure_blog/app.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="42" selection-start-line="8" selection-start-column="42" selection-end-line="8" selection-end-column="42" />
+        <state relative-caret-position="-51">
+          <caret line="365" column="4" selection-start-line="365" selection-start-column="4" selection-end-line="365" selection-end-column="4" />
+          <folding>
+            <element signature="e#0#98#0" expanded="true" />
+            <marker date="1542986008990" expanded="true" signature="17025:17197" ph="..." />
+            <marker date="1542986008990" expanded="true" signature="17704:17707" ph="..." />
+            <marker date="1542986008990" expanded="true" signature="19223:19225" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../secure_blog/app.py">
+    <entry file="file://$PROJECT_DIR$/../secure_blog/templates/login.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="103">
-          <caret line="586" column="32" selection-start-line="586" selection-start-column="32" selection-end-line="586" selection-end-column="32" />
-          <folding>
-            <element signature="e#0#98#0" expanded="true" />
-            <marker date="1542984707295" expanded="true" signature="17026:17198" ph="..." />
-            <marker date="1542984707295" expanded="true" signature="17705:17708" ph="..." />
-            <marker date="1542984707295" expanded="true" signature="19224:19226" ph="..." />
-          </folding>
+        <state relative-caret-position="105">
+          <caret line="7" column="37" lean-forward="true" selection-start-line="7" selection-start-column="37" selection-end-line="7" selection-end-column="37" />
         </state>
       </provider>
     </entry>

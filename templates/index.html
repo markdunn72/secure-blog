@@ -4,7 +4,7 @@
         {% for post in context['posts'] %}
         <li>
             <h2>{{post.title|safe}}</h2>
-            <p class="subtext">By <a href="/{{post['USERNAME']}}/">{{post['USERNAME']|safe}}</a> - {{post['DATE']}}</p>
+            <p class="subtext">By <a href="u/{{post['USERNAME']}}/">{{post['USERNAME']|safe}}</a> - {{post['DATE']}}</p>
             <p>
             {{post['CONTENT']|safe}}
             </p>

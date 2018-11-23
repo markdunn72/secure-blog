@@ -3,6 +3,7 @@ from flask import (
     redirect, url_for, session, g, abort)
 from flask_wtf import FlaskForm, RecaptchaField
 from wtforms import Form, TextAreaField, StringField, PasswordField, validators
+from itsdangerous import URLSafeTimedSerializer
 import hashlib
 import sqlite3
 import os
@@ -397,17 +398,17 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/<uname>/')
+@app.route('/u/<uname>/')
 @std_context
 def users_posts(uname=None):
+    context = request.context
     if not check_if_username_exists(uname):
-        return 'RETURN MOCK USER_POSTS PAGE WITH FALSE UNAME'
+        return render_template('blank_page.html', context=context)
 
     def fix(item):
         item['DATE'] = datetime.datetime.fromtimestamp(item['DATE']).strftime('%Y-%m-%d %H:%M')
         return item
 
-    context = request.context
     posts = get_user_posts(get_userid(uname))
 
     if posts:

@@ -68,7 +68,7 @@ def create():
     c.execute(
         'CREATE TABLE USERS'
         '(USERID INTEGER PRIMARY KEY, USERNAME TEXT NOT NULL UNIQUE, '
-        'PASSWORD TEXT NOT NULL, EMAIL TEXT NOT NULL UNIQUE);')
+        'PASSWORD TEXT NOT NULL, EMAIL TEXT NOT NULL UNIQUE, CONFIRMED INTEGER NOT NULL);')
     c.execute(
         'CREATE TABLE POSTS'
         '(POSTID INTEGER PRIMARY KEY, CREATOR INTEGER NOT NULL REFERENCES USERS(USERID), '
@@ -89,8 +89,8 @@ def create_content(db, id, name):
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     email = '%s.%s@email.com' % ((name.lower()[0], name.lower()[name.index(' ') + 1:]))
-    c.execute('INSERT INTO USERS (userid, username, password, email) VALUES (?,?,?,?)',
-              (id, username, password, email))
+    c.execute('INSERT INTO USERS (userid, username, password, email, confirmed) VALUES (?,?,?,?, ?)',
+              (id, username, password, email, 1))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):

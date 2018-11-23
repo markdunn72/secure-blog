@@ -3,6 +3,7 @@ from flask import (
     redirect, url_for, session, g, abort)
 from flask_wtf import FlaskForm, RecaptchaField
 from wtforms import Form, TextAreaField, StringField, PasswordField, validators
+from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 import hashlib
 import sqlite3
@@ -11,15 +12,57 @@ from functools import wraps
 import datetime
 import re
 
-
 app = Flask(__name__)
+mail = Mail(app)
+
+# # #
+# CONFIG
+#
+
+# secrets
+app.secret_key = os.urandom(16)
+app.config['SECURITY_PASSWORD_SALT'] = os.urandom(16)
 app.config['RECAPTCHA_PUBLIC_KEY'] = '6LethXwUAAAAAOpsqvH8g--kWSBBRY1ia_zBlaL1'
 app.config['RECAPTCHA_PRIVATE_KEY'] = '6LethXwUAAAAAEqRb8XvXnGGA2VQsW1RPl0Fkgal'
+
+
+# security settings
+app.debug = True  # change to False for production
+app.config['WTF_CSRF_ENABLED'] = False
+
+# mail settings
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'secureblogconfirmmailing@gmail.com'
+app.config['MAIL_PASSWORD'] = 'secureblogpassword1'
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+mail = Mail(app)
 
 
 # # #
 # SECURITY
 #
+
+# registration email confirmation token
+def generate_confirmation_token(email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
+
+
+def confirm_token(token, expiration=3600):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(
+            token,
+            salt=app.config['SECURITY_PASSWORD_SALT'],
+            max_age=expiration
+        )
+    except:
+        return False
+    return email
+
+
 # html character escaping dictionary
 html_dict = {"!": "&#33;",
              "\"": "&#34;",
@@ -176,7 +219,6 @@ html_dict = {"!": "&#33;",
              "þ": "&#254;",
              "ÿ": "&#255;"}
 
-
 # sets up the mapping for the html escaping
 html_sorted = sorted(html_dict, key=lambda s: len(s[0]), reverse=True)
 html_escaped = [re.escape(replacement) for replacement in html_sorted]
@@ -239,6 +281,7 @@ def std_context(f):
 # # #
 # INDEX
 #
+
 @app.route('/')
 @std_context
 def index():
@@ -276,6 +319,7 @@ def search_page():
 # # #
 # USER ACCOUNTS
 #
+
 default_account_error = u'There was an error with the account credentials'
 
 
@@ -319,7 +363,7 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', [
         validators.DataRequired('Please enter your password')
     ])
-    recaptcha = RecaptchaField()
+    #recaptcha = RecaptchaField()
     login_error = 'Unable to login using these credentials'
 
     # override validation to include credentials check
@@ -371,10 +415,34 @@ def register():
         # hash password for storage
         hashed_password = hashlib.sha3_512(str.encode(password))
         add_user_to_database(username, hashed_password.hexdigest(), email)
-        session['username'] = username
-        return redirect(url_for('login'))
+
+        # create and send confirmation email
+        html = render_template('activate.html', confirm_url='/confirm/'+generate_confirmation_token(email))
+        subject = 'Please confirm your email'
+        mail.send(Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[email], body=html))
+
+        return render_template('registration_confirm.html', context=context)
 
     return render_template('registration.html', form=form, context=context)
+
+
+@app.route('/confirm/<token>')
+@std_context
+def confirm_email(token):
+    context = request.context
+    try:
+        email = confirm_token(token)
+    except:
+        context['basicmessage'] = 'The confirmation link is invalid or has expired.'
+        return render_template('basic.html', context=context)
+    username = get_username(email)
+    userid = get_userid(username)
+    if user_confirmed(userid):
+        context['basicmessage'] = 'Account already confirmed. Please login.'
+    else:
+        confirm_user(userid)
+        context['basicmessage'] = 'You have confirmed your account. Please login.'
+    return render_template('basic.html', context=context)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -385,6 +453,9 @@ def login():
         return redirect(url_for('index'))
     form = LoginForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
+        if not user_confirmed(get_userid(form.username.data)):
+            context['basicmessage'] = 'Please confirm your email before logging in.'
+            return render_template('basic.html', context=context)
         session['username'] = form.username.data
         return redirect(url_for('index'))
 
@@ -403,7 +474,7 @@ def logout():
 def users_posts(uname=None):
     context = request.context
     if not check_if_username_exists(uname):
-        return render_template('blank_page.html', context=context)
+        return render_template('basic.html', context=context)
 
     def fix(item):
         item['DATE'] = datetime.datetime.fromtimestamp(item['DATE']).strftime('%Y-%m-%d %H:%M')
@@ -439,8 +510,7 @@ def new_post():
 # # #
 # DATABASE FUNCTIONS
 #
-# secured by using parameterized statements and appcontext teardown of db
-#
+
 DATABASE = 'blogsite.sqlite'
 
 
@@ -501,11 +571,28 @@ def check_if_email_exists(email):
 
 def add_user_to_database(username, password, email):
     connection = get_db()
+    confirmed = 0
     with connection:
         cursor = connection.cursor()
         cursor.execute("SELECT MAX(USERID) FROM USERS")
         userid = (cursor.fetchone()['MAX(USERID)']) + 1
-        cursor.execute("INSERT INTO USERS VALUES (?, ?, ?, ?)", (userid, username, password, email))
+        cursor.execute("INSERT INTO USERS VALUES (?, ?, ?, ?, ?)", (userid, username, password, email, confirmed))
+
+
+def user_confirmed(userid):
+    connection = get_db()
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM USERS WHERE CONFIRMED = 1")
+        rows = cursor.fetchall()
+    return any(userid == user_dict['USERID'] for user_dict in rows)
+
+
+def confirm_user(userid):
+    connection = get_db()
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("UPDATE USERS SET CONFIRMED = 1 WHERE USERID = ?", (userid,))
 
 
 def get_userid(username):
@@ -515,6 +602,15 @@ def get_userid(username):
         cursor.execute("SELECT USERID FROM USERS WHERE USERNAME = ?", (username,))
         userid = cursor.fetchone()['USERID']
     return userid
+
+
+def get_username(email):
+    connection = get_db()
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM USERS WHERE EMAIL = ?", (email,))
+        username = cursor.fetchone()['USERNAME']
+    return username
 
 
 def get_user_posts(userid):
@@ -541,12 +637,9 @@ def search_posts(query):
     connection = get_db()
     with connection:
         cursor = connection.cursor()
-        print(cursor)
-        print(query)
         cursor.execute('SELECT POSTS.CREATOR,POSTS.TITLE,POSTS.CONTENT,USERS.USERNAME FROM POSTS JOIN USERS ' +
                        'ON POSTS.CREATOR=USERS.USERID WHERE TITLE LIKE ? ORDER BY DATE DESC LIMIT 10;', (query,))
         rows = cursor.fetchall()
-        print(rows)
     return rows if rows else None
 
 
@@ -561,7 +654,5 @@ def add_post_to_database(userid, date, title, content):
 
 
 if __name__ == '__main__':
-    # secure session key
-    app.secret_key = os.urandom(16)
     # set debug=False for production
     app.run(debug=True)

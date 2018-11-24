@@ -383,6 +383,40 @@ class LoginForm(FlaskForm):
         return True
 
 
+class ForgotPasswordForm(Form):
+    email = StringField('Email Address', validators=[
+        validators.DataRequired('Please enter your email address.'),
+        validators.Email()
+    ])
+    recaptcha = RecaptchaField()
+
+
+class ChangePasswordForm(Form):
+    old_password = PasswordField('Old Password', validators=[
+        validators.DataRequired()
+    ])
+    password = PasswordField('New Password', validators=[
+        validators.DataRequired(),
+        validators.EqualTo('confirm', message='Passwords must match')
+    ])
+    confirm = PasswordField('Repeat Password')
+
+    # override validation to include credentials check
+    def __init__(self, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+
+    def validate(self):
+        rv = Form.validate(self)
+        if not rv:
+            return False
+        if not validate_credentials(session['username'], self.old_password.data):
+            # use same error message in same location with random delay - ACCOUNT ENUMERATION PROTECTION
+            self.old_password.errors.append(default_account_error)
+            return False
+
+        return True
+
+
 # used to stop account enumeration using retrieval time to make guesses
 def enumeration_delay():
     from time import sleep
@@ -417,13 +451,36 @@ def register():
         add_user_to_database(username, hashed_password.hexdigest(), email)
 
         # create and send confirmation email
-        html = render_template('activate.html', confirm_url='/confirm/'+generate_confirmation_token(email))
+        html = render_template('confirmation_email.html', confirm_url='/confirm/'+generate_confirmation_token(email))
         subject = 'Please confirm your email'
         mail.send(Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[email], body=html))
 
         return render_template('registration_confirm.html', context=context)
 
     return render_template('registration.html', form=form, context=context)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@std_context
+def login():
+    context = request.context
+    if context['loggedin']:
+        return redirect(url_for('index'))
+    form = LoginForm(request.form, meta={'csrf': False})
+    if request.method == 'POST' and form.validate():
+        if not user_confirmed(get_userid(form.username.data)):
+            context['basicmessage'] = 'Please confirm your email before logging in.'
+            return render_template('basic.html', context=context)
+        session['username'] = form.username.data
+        return redirect(url_for('index'))
+    return render_template('login.html', form=form, context=context)
+
+
+@app.route('/logout')
+@std_context
+def logout():
+    session.pop('username', None)
+    return redirect(url_for('index'))
 
 
 @app.route('/confirm/<token>')
@@ -445,30 +502,73 @@ def confirm_email(token):
     return render_template('basic.html', context=context)
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
 @std_context
-def login():
+def change_password():
     context = request.context
-    if context['loggedin']:
-        return redirect(url_for('index'))
-    form = LoginForm(request.form, meta={'csrf': False})
+    form = ChangePasswordForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
-        if not user_confirmed(get_userid(form.username.data)):
-            context['basicmessage'] = 'Please confirm your email before logging in.'
-            return render_template('basic.html', context=context)
-        session['username'] = form.username.data
-        return redirect(url_for('index'))
-
-    return render_template('login.html', form=form, context=context)
+        hashed_password = hashlib.sha3_512(str.encode(form.password.data))
+        change_password(get_userid(session['username']), hashed_password.hexdigest())
+        context['basicmessage'] = 'Password successfully changed!'
+        return render_template('basic.html', context=context)
+    return render_template('password_change.html', form=form, context=context)
 
 
-@app.route('/logout')
+@app.route('/forgot-password', methods=['GET', 'POST'])
 @std_context
-def logout():
-    session.pop('username', None)
-    return redirect(url_for('index'))
+def forgot_password():
+    context = request.context
+    if 'username' in session:
+        context['basicmessage'] = 'You are already signed in.'
+        return render_template('basic.html', context=context)
+    # send email regardless - ACCOUNT ENUMERATION PROTECTION
+    form = ForgotPasswordForm(request.form, meta={'csrf': False})
+    if request.method == 'POST' and form.validate():
+        email = form.email.data
+        # create and send reset email
+        html = render_template('password_reset_email.html',
+                               reset_url='/reset-password/' + generate_confirmation_token(email))
+        subject = 'Forgotten Password - Reset Your Password'
+        mail.send(Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[email], body=html))
+        context['basicmessage'] = 'An email has been sent to the address provided.'
+        return render_template('basic.html', context=context)
+    return render_template('forgot_password.html', form=form, context=context)
 
 
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+@std_context
+def reset_password(token):
+    context = request.context
+    if 'username' in session:
+        context['basicmessage'] = 'You are already signed in.'
+        return render_template('basic.html', context=context)
+    try:
+        email = confirm_token(token)
+        if not email:
+            context['basicmessage'] = 'The link is invalid or has expired.'
+            return render_template('basic.html', context=context)
+    except:
+        context['basicmessage'] = 'The link is invalid or has expired.'
+        return render_template('basic.html', context=context)
+    if not check_if_email_exists(email):
+        # return blank page for non users - ACCOUNT ENUMERATION PROTECTION
+        return render_template('basic.html')
+    username = get_username(email)
+    userid = get_userid(username)
+    form = ChangePasswordForm(request.form, meta={'csrf': False})
+    if request.method == 'POST' and form.validate():
+        hashed_password = hashlib.sha3_512(str.encode(form.password.data))
+        change_password(userid, hashed_password.hexdigest())
+        context['basicmessage'] = 'Password successfully reset! Please login to continue.'
+        return render_template('basic.html', context=context)
+    return render_template('password_reset.html', form=form, context=context)
+
+
+# # #
+# POSTS
+#
 @app.route('/u/<uname>/')
 @std_context
 def users_posts(uname=None):
@@ -481,12 +581,10 @@ def users_posts(uname=None):
         return item
 
     posts = get_user_posts(get_userid(uname))
-
     if posts:
         context['posts'] = map(fix, posts)
     else:
         context['posts'] = posts
-
     return render_template('user_posts.html', context=context)
 
 
@@ -593,6 +691,13 @@ def confirm_user(userid):
     with connection:
         cursor = connection.cursor()
         cursor.execute("UPDATE USERS SET CONFIRMED = 1 WHERE USERID = ?", (userid,))
+
+
+def change_password(userid, new_password_hash):
+    connection = get_db()
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("UPDATE USERS SET PASSWORD = ? WHERE USERID = ?", (new_password_hash, userid))
 
 
 def get_userid(username):

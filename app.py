@@ -2,7 +2,9 @@ from flask import (
     Flask, request, render_template,
     redirect, url_for, session, g, abort)
 from flask_wtf import FlaskForm, RecaptchaField
-from wtforms import Form, TextAreaField, StringField, PasswordField, validators
+from wtforms import (
+    Form, TextAreaField, StringField,
+    PasswordField, validators, ValidationError)
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 import hashlib
@@ -20,14 +22,14 @@ mail = Mail(app)
 #
 
 # secrets
-app.secret_key = os.urandom(16)
-app.config['SECURITY_PASSWORD_SALT'] = os.urandom(16)
+app.secret_key = os.urandom(16)  # keeping this random as it is on public github
+app.config['SECURITY_PASSWORD_SALT'] = os.urandom(16)  # keeping this random as it is on public github
 app.config['RECAPTCHA_PUBLIC_KEY'] = '6LethXwUAAAAAOpsqvH8g--kWSBBRY1ia_zBlaL1'
 app.config['RECAPTCHA_PRIVATE_KEY'] = '6LethXwUAAAAAEqRb8XvXnGGA2VQsW1RPl0Fkgal'
 
 
 # security settings
-app.debug = True  # change to False for production
+app.debug = False  # no debugging - do not show user stack trace!!!!
 app.config['WTF_CSRF_ENABLED'] = False
 
 # mail settings
@@ -322,6 +324,18 @@ def search_page():
 default_account_error = u'There was an error with the account credentials'
 
 
+class PasswordValidator(object):
+    def __init__(self, message=None):
+        if not message:
+            message = u'Password must contain at least one uppercase character and one number.'
+        self.message = message
+
+    def __call__(self, form, field):
+        str = field.data
+        if not re.search('\d.*[A-Z]|[A-Z].*\d', str):
+            raise ValidationError(self.message)
+
+
 # user forms
 class RegistrationForm(FlaskForm):
     username = StringField('Username', [
@@ -332,7 +346,9 @@ class RegistrationForm(FlaskForm):
     ])
     password = PasswordField('New Password', [
         validators.DataRequired(),
-        validators.EqualTo('confirm', message='Passwords must match')
+        validators.EqualTo('confirm', message='Passwords must match'),
+        validators.length(min=8, message='Password must be 8 or more characters'),
+        PasswordValidator()
     ])
     confirm = PasswordField('Repeat Password')
     recaptcha = RecaptchaField()
@@ -396,7 +412,33 @@ class ChangePasswordForm(Form):
     ])
     password = PasswordField('New Password', validators=[
         validators.DataRequired(),
-        validators.EqualTo('confirm', message='Passwords must match')
+        validators.EqualTo('confirm', message='Passwords must match'),
+        validators.length(min=8, message='Password must be 8 or more characters'),
+        PasswordValidator()
+    ])
+    confirm = PasswordField('Repeat Password')
+
+    # override validation to include credentials check
+    def __init__(self, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+
+    def validate(self):
+        rv = Form.validate(self)
+        if not rv:
+            return False
+        if not validate_credentials(session['username'], self.old_password.data):
+            # use same error message in same location with random delay - ACCOUNT ENUMERATION PROTECTION
+            self.old_password.errors.append(default_account_error)
+            return False
+
+        return True
+
+class ResetPasswordForm(Form):
+    password = PasswordField('New Password', validators=[
+        validators.DataRequired(),
+        validators.EqualTo('confirm', message='Passwords must match'),
+        validators.length(min=8, message='Password must be 8 or more characters'),
+        PasswordValidator()
     ])
     confirm = PasswordField('Repeat Password')
 
@@ -556,7 +598,7 @@ def reset_password(token):
         return render_template('basic.html')
     username = get_username(email)
     userid = get_userid(username)
-    form = ChangePasswordForm(request.form, meta={'csrf': False})
+    form = ResetPasswordForm(request.form, meta={'csrf': False})
     if request.method == 'POST' and form.validate():
         hashed_password = hashlib.sha3_512(str.encode(form.password.data))
         change_password(userid, hashed_password.hexdigest())

@@ -327,7 +327,7 @@ default_account_error = u'There was an error with the account credentials'
 class PasswordValidator(object):
     def __init__(self, message=None):
         if not message:
-            message = u'Password must contain at least one uppercase character and one number.'
+            message = u'Password must contain at least one uppercase character and one number'
         self.message = message
 
     def __call__(self, form, field):
@@ -428,10 +428,12 @@ class ChangePasswordForm(Form):
             return False
         if not validate_credentials(session['username'], self.old_password.data):
             # use same error message in same location with random delay - ACCOUNT ENUMERATION PROTECTION
+            enumeration_delay()
             self.old_password.errors.append(default_account_error)
             return False
 
         return True
+
 
 class ResetPasswordForm(Form):
     password = PasswordField('New Password', validators=[
@@ -450,8 +452,9 @@ class ResetPasswordForm(Form):
         rv = Form.validate(self)
         if not rv:
             return False
-        if not validate_credentials(session['username'], self.old_password.data):
+        if 0 == 1:
             # use same error message in same location with random delay - ACCOUNT ENUMERATION PROTECTION
+            enumeration_delay()
             self.old_password.errors.append(default_account_error)
             return False
 
@@ -596,6 +599,7 @@ def reset_password(token):
     if not check_if_email_exists(email):
         # return blank page for non users - ACCOUNT ENUMERATION PROTECTION
         return render_template('basic.html')
+    print(email)
     username = get_username(email)
     userid = get_userid(username)
     form = ResetPasswordForm(request.form, meta={'csrf': False})

@@ -26,7 +26,7 @@ lipsum==0.1.2
 MarkupSafe==1.0
 matlab==0.1
 matplotlib==3.0.1
-numpy==1.15.3
+numpy==1.22.0
 oauthlib==2.1.0
 pinax-theme-bootstrap==8.0.1
 post==2018.11.20
